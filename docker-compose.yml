@@ -2,7 +2,6 @@ include:
   - tunnel/docker-compose.yml
   - ingress/docker-compose.yml
   - components/test/docker-compose.yml
-  - components/http-test/docker-compose.yml
 
 networks:
   aicd-net:

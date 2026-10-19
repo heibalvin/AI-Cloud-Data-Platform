@@ -1,1 +1,0 @@
-docker network create AICD-net 2>/dev/null || true
