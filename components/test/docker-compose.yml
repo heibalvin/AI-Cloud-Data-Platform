@@ -1,6 +1,6 @@
 services:
   test:
-    image: nginx:alpine
+    image: nginx:1.29.2-alpine
     container_name: aicd-test
     restart: unless-stopped
     networks:

@@ -1,6 +1,6 @@
 services:
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2025.10.0
     container_name: aicd-tunnel
     restart: unless-stopped
     command: tunnel --config /etc/cloudflared/config.yml run
