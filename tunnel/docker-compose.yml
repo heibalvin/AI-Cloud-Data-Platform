@@ -1,0 +1,18 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: aicd-tunnel
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./config.yml:/etc/cloudflared/config.yml:ro
+      - ~/.cloudflared/creds.json:/etc/cloudflared/creds.json:ro
+    networks:
+      - aicd-net
+    environment:
+      - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
+
+networks:
+  aicd-net:
+    external: true
+    name: AICD-net
