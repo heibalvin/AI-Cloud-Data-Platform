@@ -4,10 +4,13 @@ A collection of tools running locally on Docker Desktop on your machine; It will
 
 Table Of Content
  * [Services](#services)
- * [Configuration](#configuration)
- * [Usage](#usage)
- * [Testing (macOS CLI)](#testing)
+ * [Install](#install)
 
+Components
+ * [Ollama](#ollama)
+ * [Traefik](#traefik)
+ * [Postgres](#postgres)
+ * [Nginx](#nginx)
 
 <a id="services"></a>
 ## Services
@@ -25,8 +28,8 @@ Lineup:
  - traefik:3.7.15
  - nginx:1.31.7-alpine
 
-<a id="configuration"></a>
-## Configuration
+<a id="install"></a>
+## Install
 
 clone this repository locally
 ```
@@ -36,11 +39,19 @@ git clone https://github.com/heibalvin/AICD.git
 copy `sample.env` into `.env`. update the environment variables
 ```
 # POSTGRES
-POSTGRES_HOST=postgres
+POSTGRES_HOST=aicd_postgres
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=<YOUR_POSTGRES_PASSWORD>
 POSTGRES_DB=default
 POSTGRES_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}
+
+# POSTGRES AICD
+POSTGRES_AICD_USER=aicd
+POSTGRES_AICD_PASSWORD=<YOUR_AICD_PASSWORD>
+POSTGRES_AICD_DB=aicd
+
+# OLLAMA
+OLLAMA_HOST=aicd_ollama
 ```
 
 start the services
@@ -51,31 +62,20 @@ docker compose up -d
 <a id="ollama"></a>
 ## Ollama
 
-TBD
+```bash
+# List pulled models (expects llama3.1:8b)
+curl -s http://localhost:11434/api/tags | jq .
+
+# Generate a completion
+curl -s http://localhost:11434/api/generate -d '{
+  "model": "llama3.1:8b",
+  "prompt": "hello",
+  "stream": false
+}' | jq .
+```
 
 <a id="traefik"></a>
 ## Traefik
-
-TBD
-
-<a id="postgres"></a>
-## Postgres
-
-TBD
-
-<a id="nginx"></a>
-## Nginx
-
-TBD
-
-<a id="testing"></a>
-## Testing (macOS CLI)
-
-Run the following checks from your Mac terminal to verify each service is reachable.
-
-Prerequisites: services must be running (`docker compose up -d`) and `.env` populated.
-
-### Traefik ingress (ports 80/11434/5432)
 
 Traefik routes port 80 to Nginx, 11434 to Ollama, and 5432 to Postgres.
 
@@ -90,28 +90,8 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:11434
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080
 ```
 
-### Ollama
-
-```bash
-# List pulled models (expects llama3.2:3b)
-curl -s http://localhost:11434/api/tags | jq .
-
-# Generate a completion
-curl -s http://localhost:11434/api/generate -d '{
-  "model": "llama3.2:3b",
-  "prompt": "hello",
-  "stream": false
-}' | jq .
-```
-
-### Nginx
-
-```bash
-# Direct to Nginx container port 80
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:80
-```
-
-### Postgres
+<a id="postgres"></a>
+## Postgres
 
 ```bash
 # Connect via the aicd database
@@ -121,8 +101,10 @@ psql "postgresql://aicd:<YOUR_POSTGRES_PASSWORD>@localhost:5432/aicd" -c "SELECT
 psql "postgresql://aicd:<YOUR_POSTGRES_PASSWORD>@localhost:5432/aicd" -c "\l"
 ```
 
-### Full stack status
+<a id="nginx"></a>
+## Nginx
 
 ```bash
-docker compose ps
+# Direct to Nginx container port 80
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:80
 ```
