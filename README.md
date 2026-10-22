@@ -6,6 +6,7 @@ Table Of Content
  * [Services](#services)
  * [Configuration](#configuration)
  * [Usage](#usage)
+ * [Testing (macOS CLI)](#testing)
 
 
 <a id="services"></a>
@@ -66,3 +67,62 @@ TBD
 ## Nginx
 
 TBD
+
+<a id="testing"></a>
+## Testing (macOS CLI)
+
+Run the following checks from your Mac terminal to verify each service is reachable.
+
+Prerequisites: services must be running (`docker compose up -d`) and `.env` populated.
+
+### Traefik ingress (ports 80/11434/5432)
+
+Traefik routes port 80 to Nginx, 11434 to Ollama, and 5432 to Postgres.
+
+```bash
+# Nginx via Traefik port 80
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:80
+
+# Ollama via Traefik port 11434
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:11434
+
+# Traefik dashboard
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080
+```
+
+### Ollama
+
+```bash
+# List pulled models (expects llama3.2:3b)
+curl -s http://localhost:11434/api/tags | jq .
+
+# Generate a completion
+curl -s http://localhost:11434/api/generate -d '{
+  "model": "llama3.2:3b",
+  "prompt": "hello",
+  "stream": false
+}' | jq .
+```
+
+### Nginx
+
+```bash
+# Direct to Nginx container port 80
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:80
+```
+
+### Postgres
+
+```bash
+# Connect via the aicd database
+psql "postgresql://aicd:<YOUR_POSTGRES_PASSWORD>@localhost:5432/aicd" -c "SELECT 1;"
+
+# List databases
+psql "postgresql://aicd:<YOUR_POSTGRES_PASSWORD>@localhost:5432/aicd" -c "\l"
+```
+
+### Full stack status
+
+```bash
+docker compose ps
+```

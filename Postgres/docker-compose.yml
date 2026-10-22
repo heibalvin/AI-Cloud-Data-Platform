@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:18.6
+    container_name: aicd_postgres
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_AICD_USER: ${POSTGRES_AICD_USER}
+      POSTGRES_AICD_PASSWORD: ${POSTGRES_AICD_PASSWORD}
+      POSTGRES_AICD_DB: ${POSTGRES_AICD_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./01_aicd_init.sh:/docker-entrypoint-initdb.d/01_aicd_init.sh
+    networks:
+      - aicd_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.tcp.routers.postgres.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.postgres.entrypoints=postgres"
+      - "traefik.tcp.routers.postgres.service=postgres"
+      - "traefik.tcp.services.postgres.loadbalancer.server.port=5432"
+
+volumes:
+  postgres_data:
+
+networks:
+  aicd_net:
+    external: true

@@ -1,0 +1,29 @@
+services:
+  ollama:
+    image: ollama/ollama:0.34.4
+    container_name: aicd_ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '5.0'
+          memory: 10G
+    entrypoint: ["/entrypoint.sh"]
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./entrypoint.sh:/entrypoint.sh
+    networks:
+      - aicd_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.ollama.entrypoints=ollama"
+      - "traefik.http.routers.ollama.service=ollama"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+
+volumes:
+  ollama_data:
+
+networks:
+  aicd_net:
+    external: true

@@ -1,0 +1,34 @@
+services:
+  traefic:
+    image: traefik:3.7.15
+    container_name: aicd_traefik
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.ollama.address=:11434"
+      - "--entrypoints.postgres.address=:5432"
+    ports:
+      - "80:80"
+      - "8080:8080"
+      - "11434:11434"
+      - "5432:5432"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_data:/etc/traefik
+    networks:
+      - aicd_net
+
+volumes:
+  traefik_data:
+
+networks:
+  aicd_net:
+    external: true

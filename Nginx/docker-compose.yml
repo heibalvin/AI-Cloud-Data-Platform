@@ -1,0 +1,27 @@
+services:
+  nginx:
+    image: nginx:1.31.7-alpine
+    container_name: aicd_nginx
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+    volumes:
+      - nginx_data:/usr/share/nginx/html
+    networks:
+      - aicd_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.nginx.entrypoints=web"
+      - "traefik.http.routers.nginx.service=nginx"
+      - "traefik.http.services.nginx.loadbalancer.server.port=80"
+
+volumes:
+  nginx_data:
+
+networks:
+  aicd_net:
+    external: true
