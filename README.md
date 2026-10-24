@@ -37,25 +37,25 @@ clone this repository locally
 git clone https://github.com/heibalvin/AICD.git
 ```
 
-copy `sample.env` into `.env`. update the environment variables
+copy `sample.env` into `.env`. update the environment variables for DOMAIN / USER / PASSWORD.
 ```
+# DOMAIN
+DOMAIN=local.akashatek.com
+
+# OLLAMA
+OLLAMA_HOST=aicd_ollama
+
 # POSTGRES
 POSTGRES_HOST=aicd_postgres
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=<YOUR_POSTGRES_PASSWORD>
+POSTGRES_PASSWORD=postgres
 POSTGRES_DB=default
 POSTGRES_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}
 
 # POSTGRES AICD
 POSTGRES_AICD_USER=aicd
-POSTGRES_AICD_PASSWORD=<YOUR_AICD_PASSWORD>
+POSTGRES_AICD_PASSWORD=aicd
 POSTGRES_AICD_DB=aicd
-
-# OLLAMA
-OLLAMA_HOST=aicd_ollama
-
-# DOMAIN
-DOMAIN=local.akashatek.com
 ```
 
 start the services
