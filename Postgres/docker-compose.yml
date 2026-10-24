@@ -18,14 +18,10 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./01_aicd_init.sh:/docker-entrypoint-initdb.d/01_aicd_init.sh
+    ports:
+      - "5432:5432"
     networks:
       - aicd_net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.tcp.routers.postgres.rule=HostSNI(`*`)"
-      - "traefik.tcp.routers.postgres.entrypoints=postgres"
-      - "traefik.tcp.routers.postgres.service=postgres"
-      - "traefik.tcp.services.postgres.loadbalancer.server.port=5432"
 
 volumes:
   postgres_data:

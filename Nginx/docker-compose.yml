@@ -14,7 +14,7 @@ services:
       - aicd_net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.nginx.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.nginx.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)"
       - "traefik.http.routers.nginx.entrypoints=web"
       - "traefik.http.routers.nginx.service=nginx"
       - "traefik.http.services.nginx.loadbalancer.server.port=80"

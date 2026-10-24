@@ -14,17 +14,17 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.ollama.address=:11434"
-      - "--entrypoints.postgres.address=:5432"
     ports:
       - "80:80"
       - "8080:8080"
       - "11434:11434"
-      - "5432:5432"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_data:/etc/traefik
     networks:
       - aicd_net
+    labels:
+      - "traefik.enable=true"
 
 volumes:
   traefik_data:

@@ -5,6 +5,7 @@ A collection of tools running locally on Docker Desktop on your machine; It will
 Table Of Content
  * [Services](#services)
  * [Install](#install)
+ * [Local Domain](#local-domain)
 
 Components
  * [Ollama](#ollama)
@@ -52,6 +53,9 @@ POSTGRES_AICD_DB=aicd
 
 # OLLAMA
 OLLAMA_HOST=aicd_ollama
+
+# DOMAIN
+DOMAIN=local.akashatek.com
 ```
 
 start the services
@@ -59,15 +63,45 @@ start the services
 docker compose up -d
 ```
 
+<a id="domain"></a>
+## Local Domain
+
+The whole deployment is served under `local.akashatek.com`. Before changing Cloudflare
+or SquareSpace DNS, test locally by mapping the domain to your machine:
+
+### 1. Add to `/etc/hosts`
+
+```
+sudo sh -c 'echo "127.0.0.1 local.akashatek.com" >> /etc/hosts'
+```
+
+This only affects your machine and does not touch `www.akashatek.com`, MX, or
+Google Workspace records at SquareSpace.
+
+### 2. Start
+
+```
+docker compose up -d
+```
+
+### Routing under `local.akashatek.com`
+
+| Path | Service |
+|------|---------|
+| `local.akashatek.com/` | Nginx (web) |
+| `local.akashatek.com/ollama/` | Ollama |
+| `local.akashatek.com/postgres/` | Postgres (TCP, 5432) |
+
+Cloudflare Tunnel and SquareSpace DNS can be added later to expose
+`local.akashatek.com` externally. Until then, `/etc/hosts` keeps traffic local.
+
+
 <a id="ollama"></a>
 ## Ollama
 
 ```bash
-# List pulled models (expects llama3.1:8b)
-curl -s http://localhost:11434/api/tags | jq .
-
 # Generate a completion
-curl -s http://localhost:11434/api/generate -d '{
+curl -s http://local.akashatek.com/ollama/api/generate -d '{
   "model": "llama3.1:8b",
   "prompt": "hello",
   "stream": false
@@ -77,34 +111,37 @@ curl -s http://localhost:11434/api/generate -d '{
 <a id="traefik"></a>
 ## Traefik
 
-Traefik routes port 80 to Nginx, 11434 to Ollama, and 5432 to Postgres.
+Traefik routes port 80 to Nginx, 11434 to Ollama, and 5432 to Postgres under `local.akashatek.com`.
 
 ```bash
 # Nginx via Traefik port 80
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:80
+curl -s -o /dev/null -w "%{http_code}\n" http://local.akashatek.com/
 
 # Ollama via Traefik port 11434
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:11434
+curl -s -o /dev/null -w "%{http_code}\n" http://local.akashatek.com/ollama/
 
 # Traefik dashboard
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080
+curl -s -o /dev/null -w "%{http_code}\n" http://local.akashatek.com:8080
 ```
 
 <a id="postgres"></a>
 ## Postgres
 
+Postgres is exposed directly on port 5432 (bypasses Traefik, since plain TCP
+connections don't carry the SNI Traefik's TCP router requires).
+
 ```bash
-# Connect via the aicd database
-psql "postgresql://aicd:<YOUR_POSTGRES_PASSWORD>@localhost:5432/aicd" -c "SELECT 1;"
+# From inside the container
+docker exec aicd_postgres psql -U aicd -d aicd -c "SELECT 1;"
 
 # List databases
-psql "postgresql://aicd:<YOUR_POSTGRES_PASSWORD>@localhost:5432/aicd" -c "\l"
+docker exec aicd_postgres psql -U aicd -d aicd -c "\l"
 ```
 
 <a id="nginx"></a>
 ## Nginx
 
 ```bash
-# Direct to Nginx container port 80
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:80
+# Direct to Nginx via Traefik
+curl -s -o /dev/null -w "%{http_code}\n" http://local.akashatek.com/
 ```
