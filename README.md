@@ -1,6 +1,6 @@
 # AI Cloud Data (AICD) platform
 
-A collection of tools running locally on Docker Desktop on your machine; It will hosts all needed tools to deploy, manage and run your AI Applications;
+A collection of tools running locally on Docker Desktop to deploy, manage and run your Cloud, Data & AI Applications;
 
 Table Of Content
  * [Services](#services)
