@@ -58,6 +58,10 @@ POSTGRES_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}
 POSTGRES_AICD_USER=aicd
 POSTGRES_AICD_PASSWORD=aicd
 POSTGRES_AICD_DB=aicd
+
+# KAFKA
+KAFKA_HOST=aicd_kafka
+KAFKA_CLUSTER_ID=aicd_kafka
 ```
 
 start the services
@@ -68,8 +72,7 @@ docker compose up -d
 <a id="domain"></a>
 ## Local Domain
 
-The whole deployment is served under `local.akashatek.com`. Before changing Cloudflare
-or SquareSpace DNS, test locally by mapping the domain to your machine:
+The whole deployment is served under `local.akashatek.com`. Before changing Cloudflare or SquareSpace DNS, test locally by mapping the domain to your machine:
 
 ### 1. Add to `/etc/hosts`
 
@@ -88,11 +91,13 @@ docker compose up -d
 
 ### Routing under `local.akashatek.com`
 
-| Path | Service |
+| Port | Service |
 |------|---------|
-| `local.akashatek.com/` | Nginx (web) |
-| `local.akashatek.com/ollama/` | Ollama |
-| `local.akashatek.com/postgres/` | Postgres (TCP, 5432) |
+| 80 | Nginx (web) |
+| 11434 | Ollama |
+| 8080 | Traefik dashboard |
+| 9092/9093 | Kafka |
+| 5432 | Postgres (TCP) |
 
 Cloudflare Tunnel and SquareSpace DNS can be added later to expose
 `local.akashatek.com` externally. Until then, `/etc/hosts` keeps traffic local.
@@ -103,7 +108,7 @@ Cloudflare Tunnel and SquareSpace DNS can be added later to expose
 
 ```bash
 # Generate a completion
-curl -s http://local.akashatek.com/ollama/api/generate -d '{
+curl -s http://local.akashatek.com:11434/api/generate -d '{
   "model": "llama3.1:8b",
   "prompt": "hello",
   "stream": false
@@ -120,7 +125,7 @@ Traefik routes port 80 to Nginx, 11434 to Ollama, and 5432 to Postgres under `lo
 curl -s -o /dev/null -w "%{http_code}\n" http://local.akashatek.com/
 
 # Ollama via Traefik port 11434
-curl -s -o /dev/null -w "%{http_code}\n" http://local.akashatek.com/ollama/
+curl -s -o /dev/null -w "%{http_code}\n" http://local.akashatek.com:11434/
 
 # Traefik dashboard
 curl -s -o /dev/null -w "%{http_code}\n" http://local.akashatek.com:8080

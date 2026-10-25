@@ -26,11 +26,15 @@ services:
       - "9092:9092"
     volumes:
       - kafka_data:/var/lib/kafka/data
+      - kafka_config:/mnt/shared/config
+      - kafka_secrets:/etc/kafka/secrets
     networks:
       - aicd_net
 
 volumes:
   kafka_data:
+  kafka_config:
+  kafka_secrets:
 
 networks:
   aicd_net:

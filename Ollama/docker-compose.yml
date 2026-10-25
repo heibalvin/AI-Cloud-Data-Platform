@@ -16,12 +16,10 @@ services:
       - aicd_net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ollama.rule=Host(`${DOMAIN}`) && PathPrefix(`/ollama`)"
-      - "traefik.http.routers.ollama.entrypoints=web"
+      - "traefik.http.routers.ollama.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.ollama.entrypoints=ollama"
       - "traefik.http.routers.ollama.service=ollama"
       - "traefik.http.services.ollama.loadbalancer.server.port=11434"
-      - "traefik.http.middlewares.ollama-strip.stripprefix.prefixes=/ollama"
-      - "traefik.http.routers.ollama.middlewares=ollama-strip"
 
 volumes:
   ollama_data:
