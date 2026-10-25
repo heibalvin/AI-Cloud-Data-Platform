@@ -11,6 +11,7 @@ Components
  * [Ollama](#ollama)
  * [Traefik](#traefik)
  * [Postgres](#postgres)
+ * [Kafka](#kafka)
  * [Nginx](#nginx)
 
 <a id="services"></a>
@@ -21,7 +22,8 @@ Components
 | ![ollama logo](./Assets/logo-ollama.png)  | [Ollama](#ollama) is the engine that brings large language models (LLMs) to your desktop. It allows you to download, run, and manage open-source models like Llama 3 directly on your local machine, eliminating the need for expensive cloud services. Ollama simplifies the entire process, making it easy to experiment with different models for your AI applications.  |
 | ![traefik logo](./Assets/logo-traefik.png)  | [Traefik](#traefik) ingress controller is a modern, cloud-native reverse proxy and load balancer that manages external HTTP/HTTPS access to services inside a Kubernetes cluster. It reads standard Kubernetes Ingress resources or custom IngressRoute definitions and dynamically maps traffic to your containerized  |
 | ![postgres logo](./Assets/logo-postgres.png)  | [Postgres](#postgres) is a powerful, open-source relational database. While it's known for its reliability and robustness in storing traditional, structured data, it also plays a critical role in modern AI stacks. In this context, Postgres is used to manage the metadata and structured information associated with your AI application, providing a solid foundation for user data, logs, and other critical backend needs.  |
-| ![nginx logo](./Assets/logo-nginx.png)  | [Nginx](#nginx)  is a high-performance, open-source HTTP web server, reverse proxy, content cache, and load balancer. Created by Igor Sysoev and released in 2004, it is currently one of the most widely used web servers in the world. |
+| ![kafka logo](./Assets/logo-kafka.png)   | [Kafka](#kafka)  is a distributed, high-throughput event streaming and message-broker platform available at Apache Kafka. It acts as an intermediary between data producers and consumers by storing and routing data streams in real time. | 
+| ![nginx logo](./Assets/logo-nginx.png)  | [Nginx](#nginx) is a high-performance, open-source HTTP web server, reverse proxy, content cache, and load balancer. Created by Igor Sysoev and released in 2004, it is currently one of the most widely used web servers in the world. |
 
 Lineup:
  - ollama/ollama:0.34.4
@@ -138,6 +140,20 @@ docker exec aicd_postgres psql -U aicd -d aicd -c "SELECT 1;"
 docker exec aicd_postgres psql -U aicd -d aicd -c "\l"
 ```
 
+<a id="kafka"></a>
+## Kafka
+
+```bash
+# Create a topic
+docker exec aicd_kafka /opt/kafka/bin/kafka-topics.sh --create --topic test --bootstrap-server localhost:9092
+
+# Produce a message
+echo "hello" | docker exec -i aicd_kafka /opt/kafka/bin/kafka-console-producer.sh --topic test --bootstrap-server localhost:9092
+
+# Consume messages
+docker exec aicd_kafka /opt/kafka/bin/kafka-console-consumer.sh --topic test --from-beginning --bootstrap-server localhost:9092 --max-messages 1
+```
+
 <a id="nginx"></a>
 ## Nginx
 
@@ -145,3 +161,4 @@ docker exec aicd_postgres psql -U aicd -d aicd -c "\l"
 # Direct to Nginx via Traefik
 curl -s -o /dev/null -w "%{http_code}\n" http://local.akashatek.com/
 ```
+

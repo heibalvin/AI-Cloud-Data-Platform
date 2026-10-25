@@ -10,3 +10,4 @@ include:
   - ./Postgres/docker-compose.yml
   - ./Ollama/docker-compose.yml
   - ./Nginx/docker-compose.yml
+  - ./Kafka/docker-compose.yml

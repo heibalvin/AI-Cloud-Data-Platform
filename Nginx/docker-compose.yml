@@ -10,6 +10,7 @@ services:
           memory: 1G
     volumes:
       - nginx_data:/usr/share/nginx/html
+      - ./index.html:/usr/share/nginx/html/index.html:ro
     networks:
       - aicd_net
     labels:
