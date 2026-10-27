@@ -11,6 +11,7 @@ services:
     volumes:
       - nginx_data:/usr/share/nginx/html
       - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./Assets:/usr/share/nginx/html/Assets:ro
     networks:
       - aicd_net
     labels:

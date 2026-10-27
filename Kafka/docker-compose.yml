@@ -31,6 +31,25 @@ services:
     networks:
       - aicd_net
 
+  kafka-ui:
+    image: kafbat/kafka-ui:f2a4f9b
+    container_name: aicd_kafka_ui
+    restart: unless-stopped
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: aicd_kafka:9092
+      SERVER_SERVLET_CONTEXT_PATH: /kafkaui
+    ports:
+      - "8081:8080"
+    networks:
+      - aicd_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kafkaui.rule=Host(`${DOMAIN}`) && PathPrefix(`/kafkaui`)"
+      - "traefik.http.routers.kafkaui.entrypoints=web"
+      - "traefik.http.routers.kafkaui.service=kafkaui"
+      - "traefik.http.services.kafkaui.loadbalancer.server.port=8080"
+
 volumes:
   kafka_data:
   kafka_config:

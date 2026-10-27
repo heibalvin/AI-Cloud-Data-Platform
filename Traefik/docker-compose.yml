@@ -25,6 +25,10 @@ services:
       - aicd_net
     labels:
       - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`${DOMAIN}`) && PathPrefix(`/traefik`)"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+      - "traefik.http.routers.dashboard.service=dashboard"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
 
 volumes:
   traefik_data:
