@@ -1,7 +1,6 @@
 from typing import List, Optional, Dict, Any
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from database import (
@@ -17,15 +16,7 @@ from database import (
 from message import publish_chat_request
 
 
-app = FastAPI(title="AICD Ollama Chat (Kafka-driven)")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+router = APIRouter(prefix="/api")
 
 
 class ThreadCreate(BaseModel):
@@ -66,7 +57,7 @@ async def startup():
         print("[api] created default thread 'Welcome'")
 
 
-@app.get("/api/threads", response_model=List[ThreadOut])
+@router.get("/threads", response_model=List[ThreadOut])
 async def api_list_threads():
     return await list_threads()
 

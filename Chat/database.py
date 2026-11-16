@@ -7,10 +7,7 @@ from typing import List, Optional, Dict, Any
 import psycopg
 from psycopg.rows import dict_row
 
-POSTGRES_URI = os.getenv(
-    "POSTGRES_URI",
-    "postgresql://aicd:aicd@aicd_postgres:5432/aicd",
-)
+from env import POSTGRES_URI
 
 
 async def get_conn(retries: int = 30, delay: float = 1.0):
