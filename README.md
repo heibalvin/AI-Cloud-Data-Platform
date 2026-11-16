@@ -22,14 +22,13 @@ Components
 
 | Services  | Description  |
 |---|---|
-| ![ollama logo](./Nginx/Assets/logo-ollama.png)  | [Ollama](#ollama) is the engine that brings large language models (LLMs) to your desktop. It allows you to download, run, and manage open-source models like Llama 3 directly on your local machine, eliminating the need for expensive cloud services. Ollama simplifies the entire process, making it easy to experiment with different models for your AI applications.  |
+| ![ollama logo](./Nginx/Assets/logo-ollama.png)  | [Ollama](#ollama) is the engine that brings large language models (LLMs) to your desktop. It allows you to download, run, and manage open-source models like Llama 3 directly on your local machine, eliminating the need for expensive cloud services. Ollama simplifies the entire process, making it easy to experiment with different models for your AI applications.  |
 | ![postgres logo](./Nginx/Assets/logo-postgres.png)  | [Postgres](#postgres) is a powerful, open-source relational database. While it's known for its reliability and robustness in storing traditional, structured data, it also plays a critical role in modern AI stacks. In this context, Postgres is used to manage the metadata and structured information associated with your AI application, providing a solid foundation for user data, logs, and other critical backend needs.  |
 | ![pgadmin logo](./Nginx/Assets/logo-pgadmin.png)  | [pgAdmin](#pgadmin) is the administration and management tool for PostgreSQL databases. | 
 | ![kafka logo](./Nginx/Assets/logo-kafka.png)   | [Kafka](#kafka)  is a distributed, high-throughput event streaming and message-broker platform available at Apache Kafka. It acts as an intermediary between data producers and consumers by storing and routing data streams in real time. | 
 | ![kafka ui logo](./Nginx/Assets/logo-kafka-ui.png)   | [Kafka UI](#kafka-ui) is a web-based UI to manage Kafka topics, consumers, and messages. | 
-| ![nginx logo](./Nginx/Assets/logo-nginx.png)  | [Nginx](#nginx) is a high-performance, open-source HTTP web server, reverse proxy, content cache, and load balancer. In this platform, Nginx serves as the **frontend** hosting the chat UI (HTML/CSS/JS). |
-| ![langchain logo](./Nginx/Assets/logo-langchain.png)  | [LangChain](#langchain) is a framework for developing applications powered by language models. It provides abstractions for LLMs, prompt templates, memory, and chains. Used by the Chat backend. |
-| ![ollama logo](./Nginx/Assets/logo-ollama.png)  | [Chat](#chat) is an Ollama-powered chat application with persistent threads and conversation history stored in Postgres, built with **LangChain** and **FastAPI**. |
+| ![nginx logo](./Nginx/Assets/logo-nginx.png)  | [Nginx](#nginx) is a high-performance, open-source HTTP web server, reverse proxy, content cache, and load balancer. In this platform, Nginx serves the **chat web interface** (HTML/CSS/JS). |
+| ![langchain logo](./Nginx/Assets/logo-langchain.png)  | [Chat](#chat) is the AI chat service powered by **LangChain** and Ollama. It manages persistent threads, conversation history in Postgres, and communicates via Kafka. |
 
 Lineup:
  - ollama/ollama:0.34.4
@@ -47,8 +46,8 @@ The two custom images are versioned independently with a single version name, ha
 
 | Service | Image | File |
 |---------|-------|------|
-| Chat backend | `aicd-chat:1.0.0` | `Chat/docker-compose.yml` |
-| Nginx frontend | `aicd-nginx:1.1.1` | `Nginx/docker-compose.yml` |
+| Chat | `aicd-chat:1.0.0` | `Chat/docker-compose.yml` |
+| Nginx | `aicd-nginx:1.1.1` | `Nginx/docker-compose.yml` |
 
 <a id="install"></a>
 ## Install
@@ -213,7 +212,7 @@ docker exec aicd_kafka /opt/kafka/bin/kafka-topics.sh --create --topic chat.resp
 <a id="nginx"></a>
 ## Nginx
 
-Nginx serves the **chat frontend** at `http://localhost:80`.
+Nginx serves the **chat web interface** at `http://localhost:80`.
 
 ```bash
 # Nginx on port 80
@@ -223,7 +222,7 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost/
 <a id="langchain"></a>
 ## LangChain
 
-LangChain is the framework used by the Chat backend (`aicd_chat`) to orchestrate
+LangChain is the framework used by the **Chat service** (`aicd_chat`) to orchestrate
 LLM interactions. It provides:
 - **ChatOllama** integration for calling Ollama's REST API
 - **Prompt templates** for system/user/assistant message formatting
@@ -239,7 +238,7 @@ LLM interactions. It provides:
 ## Chat
 
 Ollama-powered chat with persistent threads and conversation history stored in Postgres (`aicd` database, user `aicd`).
-Messaging between the frontend and the backend flows through Kafka.
+Messaging between **Nginx** and **Chat** flows through Kafka.
 
 Frontend UI: `http://localhost:80` (`aicd_nginx`)
 Backend API: `http://localhost:8000` (`aicd_chat`)
@@ -248,7 +247,7 @@ Backend API: `http://localhost:8000` (`aicd_chat`)
 
 ```mermaid
 flowchart LR
-    subgraph Browser["Browser / Nginx frontend (aicd_nginx :80)"]
+    subgraph Browser["Browser / Nginx (aicd_nginx :80)"]
         UI[User types question<br/>Click ASK]
     end
 
@@ -257,7 +256,7 @@ flowchart LR
         RESP[(chat.responses<br/>topic)]
     end
 
-    subgraph Chat["Chat backend (aicd_chat :8000)"]
+    subgraph Chat["Chat service (aicd_chat :8000)"]
         CONSUMER[Kafka consumer<br/>chat.requests]
         LANGCHAIN[LangChain +<br/>ChatOllama]
         PRODUCER[Kafka producer<br/>chat.responses]
@@ -293,15 +292,15 @@ flowchart LR
 ### Message Flow
 
 1. User types a question and clicks **ASK**.
-2. `aicd_nginx` (frontend) POSTs to `/api/chat`, which publishes the request to Kafka topic `chat.requests`.
-3. `aicd_chat` consumes `chat.requests`, saves the user message to Postgres, calls Ollama via LangChain, saves the assistant answer to Postgres, and publishes the response to Kafka topic `chat.responses`.
-4. The frontend polls `/api/threads/{id}/response` and displays the answer in the dialog center.
+2. **Nginx** POSTs to `/api/chat`, which publishes the request to Kafka topic `chat.requests`.
+3. **Chat** consumes `chat.requests`, saves the user message to Postgres, calls Ollama via LangChain, saves the assistant answer to Postgres, and publishes the response to Kafka topic `chat.responses`.
+4. **Nginx** polls `/api/threads/{id}/response` and displays the answer in the dialog center.
 
 ---
 
 ### Chat / Postgres Interface
 
-The Chat backend uses **Postgres** (database `aicd`, user `aicd`) for persistent storage of threads and messages. Tables are auto-created on startup.
+The **Chat service** uses **Postgres** (database `aicd`, user `aicd`) for persistent storage of threads and messages. Tables are auto-created on startup.
 
 #### Schema
 
@@ -346,20 +345,20 @@ All timestamps use `TIMESTAMPTZ` (UTC). UUIDs are generated in Python (`uuid.uui
 
 ### Chat / Kafka Topics and Messages
 
-The Chat backend uses **two Kafka topics** for async request/response flow.
+The **Chat service** uses **two Kafka topics** for async request/response flow.
 
 #### Topics
 
 | Topic | Partitions | Retention | Purpose |
 |-------|------------|-----------|---------|
-| `chat.requests` | 1 (default) | 7 days | Incoming chat requests from frontend |
-| `chat.responses` | 1 (default) | 7 days | Outgoing responses to frontend |
+| `chat.requests` | 1 (default) | 7 days | Incoming chat requests from Nginx |
+| `chat.responses` | 1 (default) | 7 days | Outgoing responses to Nginx |
 
 Auto-created via `KAFKA_AUTO_CREATE_TOPICS_ENABLE=true`.
 
 #### Message Format
 
-**`chat.requests`** (produced by Nginx `/api/chat`, consumed by Chat backend):
+**`chat.requests`** (produced by Nginx `/api/chat`, consumed by Chat):
 ```json
 {
   "thread_id": "uuid-string",
@@ -368,7 +367,7 @@ Auto-created via `KAFKA_AUTO_CREATE_TOPICS_ENABLE=true`.
 }
 ```
 
-**`chat.responses`** (produced by Chat backend, polled by frontend via `/api/threads/{id}/response`):
+**`chat.responses`** (produced by Chat, polled by Nginx via `/api/threads/{id}/response`):
 ```json
 {
   "thread_id": "uuid-string",
@@ -385,7 +384,7 @@ Auto-created via `KAFKA_AUTO_CREATE_TOPICS_ENABLE=true`.
 
 ### Chat / Ollama Interface
 
-The Chat backend calls Ollama via **LangChain's `ChatOllama`** class.
+The **Chat service** calls Ollama via **LangChain's `ChatOllama`** class.
 
 #### Configuration
 - **Base URL**: `http://aicd_ollama:11434` (internal Docker network)
@@ -426,7 +425,7 @@ Full conversation history is fetched from Postgres (`messages` table) and conver
 
 ### Chat / Nginx API Commands
 
-The Nginx frontend (`aicd_nginx` on port 80) proxies `/api/*` to the Chat backend (`aicd_chat:8000`).
+The Nginx (`aicd_nginx` on port 80) proxies `/api/*` to the Chat service (`aicd_chat:8000`).
 
 #### Endpoints
 
@@ -509,9 +508,9 @@ curl -s -X DELETE http://localhost:8000/api/threads/<thread-uuid> | jq .
 
 To trace a full request end-to-end:
 
-1. **Nginx / frontend** — open `http://localhost:80`, type a question, click ASK. The question appears in the dialog center.
+1. **Nginx** — open `http://localhost:80`, type a question, click ASK. The question appears in the dialog center.
 2. **Kafka UI** — open `http://localhost:8081`, inspect topic `chat.requests` to confirm the request message was produced, then topic `chat.responses` for the reply.
-3. **Chat backend logs** — verify the consumer picked up the request:
+3. **Chat service logs** — verify the consumer picked up the request:
    ```
    docker logs aicd_chat
    ```
