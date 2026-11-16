@@ -205,9 +205,10 @@ async function loadThreads() {
       threadListEl.prepend(div);
     }
   }
-  if (globalThread) {
+  // Auto-select "Global Chat" ONLY if no thread is currently selected
+  if (!currentThreadId && globalThread) {
     loadThread(globalThread.id);
-  } else if (threads.length === 0) {
+  } else if (!currentThreadId && threads.length === 0) {
     currentThreadId = null;
     chatHeader.textContent = 'Select a thread';
     emptyState.style.display = 'flex';

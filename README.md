@@ -14,6 +14,7 @@ Components
  * [Kafka](#kafka)
  * [Kafka UI](#kafka-ui)
  * [Nginx](#nginx)
+ * [LangChain](#langchain)
  * [Chat](#chat)
 
 <a id="services"></a>
@@ -26,8 +27,9 @@ Components
 | ![pgadmin logo](./Nginx/Assets/logo-pgadmin.png)  | [pgAdmin](#pgadmin) is the administration and management tool for PostgreSQL databases. | 
 | ![kafka logo](./Nginx/Assets/logo-kafka.png)   | [Kafka](#kafka)  is a distributed, high-throughput event streaming and message-broker platform available at Apache Kafka. It acts as an intermediary between data producers and consumers by storing and routing data streams in real time. | 
 | ![kafka ui logo](./Nginx/Assets/logo-kafka-ui.png)   | [Kafka UI](#kafka-ui) is a web-based UI to manage Kafka topics, consumers, and messages. | 
-| ![nginx logo](./Nginx/Assets/logo-nginx.png)  | [Nginx](#nginx) is a high-performance, open-source HTTP web server, reverse proxy, content cache, and load balancer. Created by Igor Sysoev and released in 2004, it is currently one of the most widely used web servers in the world. |
-| ![ollama logo](./Nginx/Assets/logo-ollama.png)  | [Chat](#chat) is an Ollama-powered chat application with persistent threads and conversation history stored in Postgres, built with LangChain and FastAPI. |
+| ![nginx logo](./Nginx/Assets/logo-nginx.png)  | [Nginx](#nginx) is a high-performance, open-source HTTP web server, reverse proxy, content cache, and load balancer. In this platform, Nginx serves as the **frontend** hosting the chat UI (HTML/CSS/JS). |
+| ![langchain logo](./Nginx/Assets/logo-langchain.png)  | [LangChain](#langchain) is a framework for developing applications powered by language models. It provides abstractions for LLMs, prompt templates, memory, and chains. Used by the Chat backend. |
+| ![ollama logo](./Nginx/Assets/logo-ollama.png)  | [Chat](#chat) is an Ollama-powered chat application with persistent threads and conversation history stored in Postgres, built with **LangChain** and **FastAPI**. |
 
 Lineup:
  - ollama/ollama:0.34.4
@@ -35,7 +37,7 @@ Lineup:
  - dpage/pgadmin4:9.18.0
  - apache/kafka:4.3.1
  - kafbat/kafka-ui:f2a4f9b
- - aicd-nginx:1.0.0
+ - aicd-nginx:1.1.1
  - aicd-chat:1.0.0
  - nginx:1.31.7-alpine
 
@@ -47,18 +49,6 @@ The two custom images are versioned independently with a single version name, ha
 |---------|-------|------|
 | Chat backend | `aicd-chat:1.0.0` | `Chat/docker-compose.yml` |
 | Nginx frontend | `aicd-nginx:1.1.1` | `Nginx/docker-compose.yml` |
-
-The version is set directly in each `docker-compose.yml` (build arg `VERSION`) and recorded as an OCI image label (`org.opencontainers.image.version`).
-
-To release a new build, change `VERSION` (e.g. `1.0.0` → `1.0.1`) in the corresponding `docker-compose.yml` and rebuild:
-
-```
-# Bump only chat
-docker compose up -d --build chat
-
-# Bump only nginx
-docker compose up -d --build nginx
-```
 
 <a id="install"></a>
 ## Install
@@ -126,13 +116,13 @@ docker compose up -d
 
 | Port | Service |
 |------|---------|
-| 80 | Nginx / Chat frontend (aicd_nginx) |
+| 80 | Nginx Chat Frontend |
 | 11434 | Ollama |
 | 9092 | Kafka |
 | 8081 | Kafka UI |
 | 5432 | Postgres (TCP) |
 | 8082 | pgAdmin |
-| 8000 | Chat backend API (aicd_chat) |
+| 8000 | Chat Backend API |
 
 Cloudflare Tunnel and SquareSpace DNS can be added later to expose
 `local.akashatek.com` externally. Until then, `/etc/hosts` keeps traffic local.
@@ -143,7 +133,7 @@ Cloudflare Tunnel and SquareSpace DNS can be added later to expose
 
 ```bash
 # Generate a completion
-curl -s http://local.akashatek.com:11434/api/generate -d '{
+curl -s http://localhost:11434/api/generate -d '{
   "model": "llama3.1:8b",
   "prompt": "hello",
   "stream": false
@@ -180,9 +170,9 @@ Log in with:
 4. **Connection** tab:
    * Host name/address: `aicd_postgres`
    * Port: `5432`
-   * Maintenance database: `default` (or `aicd`)
-   * Username: `postgres`
-   * Password: `postgres`
+   * Maintenance database: `aicd`
+   * Username: `aicd`
+   * Password: `aicd`
 5. Click **Save**.
 
 ### Automation
@@ -219,18 +209,36 @@ create them manually:
 docker exec aicd_kafka /opt/kafka/bin/kafka-topics.sh --create --topic chat.requests --bootstrap-server localhost:9092
 docker exec aicd_kafka /opt/kafka/bin/kafka-topics.sh --create --topic chat.responses --bootstrap-server localhost:9092
 ```
+
 <a id="nginx"></a>
 ## Nginx
+
+Nginx serves the **chat frontend** at `http://localhost:80`.
 
 ```bash
 # Nginx on port 80
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost/
 ```
 
+<a id="langchain"></a>
+## LangChain
+
+LangChain is the framework used by the Chat backend (`aicd_chat`) to orchestrate
+LLM interactions. It provides:
+- **ChatOllama** integration for calling Ollama's REST API
+- **Prompt templates** for system/user/assistant message formatting
+- **Message history** management via custom Postgres-backed memory
+- **Chain composition** for request → LLM → response flow
+
+```bash
+# LangChain runs inside aicd_chat container
+# No external port exposed; invoked via FastAPI /api/chat
+```
+
 <a id="chat"></a>
 ## Chat
 
-Ollama-powered chat with persistent threads and conversation history stored in Postgres (`aicd` db, user `aicd`).
+Ollama-powered chat with persistent threads and conversation history stored in Postgres (`aicd` database, user `aicd`).
 Messaging between the frontend and the backend flows through Kafka.
 
 Frontend UI: `http://localhost:80` (`aicd_nginx`)
@@ -282,51 +290,220 @@ flowchart LR
     style Postgres fill:#ffebee,stroke:#c62828
 ```
 
-### Frontend layout
+### Message Flow
 
-- **Left panel:** Thread list — create new threads, switch between threads, delete threads.
-- **Middle panel (dialog):** Chat history — your question appears immediately, then shows "awaiting Ollama answer" until the response comes back through Kafka.
-- **Bottom panel:** Model selector, question textarea, and ASK button.
-
-### Message flow
-
-1. You type a question and click **ASK**.
+1. User types a question and clicks **ASK**.
 2. `aicd_nginx` (frontend) POSTs to `/api/chat`, which publishes the request to Kafka topic `chat.requests`.
-3. `aicd_chat` consumes `chat.requests`, saves the user message to Postgres, calls Ollama, saves the assistant answer to Postgres, and publishes the response to Kafka topic `chat.responses`.
+3. `aicd_chat` consumes `chat.requests`, saves the user message to Postgres, calls Ollama via LangChain, saves the assistant answer to Postgres, and publishes the response to Kafka topic `chat.responses`.
 4. The frontend polls `/api/threads/{id}/response` and displays the answer in the dialog center.
 
-### API endpoints
+---
+
+### Chat / Postgres Interface
+
+The Chat backend uses **Postgres** (database `aicd`, user `aicd`) for persistent storage of threads and messages. Tables are auto-created on startup.
+
+#### Schema
+
+```sql
+-- threads table: stores chat threads
+CREATE TABLE IF NOT EXISTS threads (
+    id TEXT PRIMARY KEY,
+    title TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- messages table: stores all messages linked to threads
+CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- index for efficient message retrieval by thread
+CREATE INDEX IF NOT EXISTS idx_messages_thread_id
+ON messages(thread_id, created_at);
+```
+
+#### Operations
+
+| Operation | SQL |
+|-----------|-----|
+| **Create thread** | `INSERT INTO threads (id, title) VALUES (%s, %s) RETURNING id, title, created_at, updated_at` |
+| **List threads** | `SELECT id, title, created_at, updated_at FROM threads ORDER BY updated_at DESC` |
+| **Get thread** | `SELECT id, title, created_at, updated_at FROM threads WHERE id = %s` |
+| **Add message** | `INSERT INTO messages (id, thread_id, role, content) VALUES (%s, %s, %s, %s) RETURNING id, thread_id, role, content, created_at` |
+| **Get messages** | `SELECT id, thread_id, role, content, created_at FROM messages WHERE thread_id = %s ORDER BY created_at ASC` |
+| **Latest assistant msg** | `SELECT id, thread_id, role, content, created_at FROM messages WHERE thread_id = %s AND role = 'assistant' ORDER BY created_at DESC LIMIT 1` |
+| **Delete thread** | `DELETE FROM threads WHERE id = %s` (cascades to messages) |
+
+All timestamps use `TIMESTAMPTZ` (UTC). UUIDs are generated in Python (`uuid.uuid4()`). Connections use `psycopg.AsyncConnection` with retry logic.
+
+---
+
+### Chat / Kafka Topics and Messages
+
+The Chat backend uses **two Kafka topics** for async request/response flow.
+
+#### Topics
+
+| Topic | Partitions | Retention | Purpose |
+|-------|------------|-----------|---------|
+| `chat.requests` | 1 (default) | 7 days | Incoming chat requests from frontend |
+| `chat.responses` | 1 (default) | 7 days | Outgoing responses to frontend |
+
+Auto-created via `KAFKA_AUTO_CREATE_TOPICS_ENABLE=true`.
+
+#### Message Format
+
+**`chat.requests`** (produced by Nginx `/api/chat`, consumed by Chat backend):
+```json
+{
+  "thread_id": "uuid-string",
+  "message": "User's question text",
+  "model": "llama3.1:8b"
+}
+```
+
+**`chat.responses`** (produced by Chat backend, polled by frontend via `/api/threads/{id}/response`):
+```json
+{
+  "thread_id": "uuid-string",
+  "response": "Assistant's generated answer text"
+}
+```
+
+#### Consumer Group
+- Group ID: `aicd_chat`
+- Auto-commit: enabled
+- Offset reset: earliest
+
+---
+
+### Chat / Ollama Interface
+
+The Chat backend calls Ollama via **LangChain's `ChatOllama`** class.
+
+#### Configuration
+- **Base URL**: `http://aicd_ollama:11434` (internal Docker network)
+- **Model**: Configurable per request (default `llama3.1:8b`)
+- **Streaming**: Disabled (`stream: false`) for simplicity
+
+#### Request Flow
+```python
+# Inside aicd_chat (Chat/main.py -> llm.py)
+from langchain_ollama import ChatOllama
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+
+llm = ChatOllama(model="llama3.1:8b", base_url="http://aicd_ollama:11434")
+
+messages = [
+    SystemMessage(content="You are a helpful AI assistant..."),
+    # ...conversation history from Postgres...
+    HumanMessage(content="User's current question")
+]
+
+result = await llm.ainvoke(messages)
+answer = result.content
+```
+
+#### Prompt Structure
+```
+System: You are a helpful AI assistant. Answer clearly and concisely.
+User: (history message 1)
+Assistant: (history answer 1)
+User: (history message 2)
+...
+User: (current question)
+```
+
+Full conversation history is fetched from Postgres (`messages` table) and converted to LangChain message objects before each call.
+
+---
+
+### Chat / Nginx API Commands
+
+The Nginx frontend (`aicd_nginx` on port 80) proxies `/api/*` to the Chat backend (`aicd_chat:8000`).
+
+#### Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/threads` | List all threads |
-| POST | `/api/threads` | Create a new thread |
-| GET | `/api/threads/{id}` | Get a thread with its messages |
-| DELETE | `/api/threads/{id}` | Delete a thread |
-| POST | `/api/chat` | Publish a chat request to Kafka (`chat.requests`) |
-| GET | `/api/threads/{id}/response` | Poll for the latest Ollama answer |
+| GET | `/api/threads` | List all threads (most recent first) |
+| POST | `/api/threads` | Create a new thread (`{ "title": "optional" }`) |
+| GET | `/api/threads/{id}` | Get thread with full message history |
+| DELETE | `/api/threads/{id}` | Delete a thread and its messages |
+| POST | `/api/chat` | Queue a chat request to Kafka (`chat.requests`) |
+| GET | `/api/threads/{id}/response` | Poll for latest assistant response |
 
-### Example
+#### Request/Response Examples
 
+**List threads**
 ```bash
-# List threads
 curl -s http://localhost:8000/api/threads | jq .
-
-# Create a thread
-curl -s -X POST http://localhost:8000/api/threads -H 'Content-Type: application/json' -d '{"title":"My chat"}' | jq .
-
-# Send a message (queued to Kafka)
-curl -s -X POST http://localhost:8000/api/chat -H 'Content-Type: application/json' -d '{
-  "thread_id": "<thread-id>",
-  "message": "Hello, what can you do?",
-  "model": "llama3.1:8b"
-}' | jq .
-
-# Poll for the Ollama answer
-curl -s http://localhost:8000/api/threads/<thread-id>/response | jq .
+# Response: [{"id":"uuid","title":"Global Chat","updated_at":"2026-11-16T..."}]
 ```
 
-Conversation history and threads are persisted in the `aicd_postgres` database (`threads` and `messages` tables, database `aicd`, user `aicd`).
+**Create thread**
+```bash
+curl -s -X POST http://localhost:8000/api/threads \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"My new thread"}' | jq .
+# Response: {"id":"uuid","title":"My new thread","updated_at":"..."}
+```
+
+**Create thread (default name "Global Chat")**
+```bash
+curl -s -X POST http://localhost:8000/api/threads \
+  -H 'Content-Type: application/json' \
+  -d '{}' | jq .
+```
+
+**Send message (queued to Kafka)**
+```bash
+curl -s -X POST http://localhost:8000/api/chat \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "thread_id": "<thread-uuid>",
+    "message": "What is LangChain?",
+    "model": "llama3.1:8b"
+  }' | jq .
+# Response: {"thread_id":"<thread-uuid>","status":"queued"}
+```
+
+**Poll for answer**
+```bash
+curl -s http://localhost:8000/api/threads/<thread-uuid>/response | jq .
+# Pending: {"thread_id":"...","response":null,"status":"pending"}
+# Done:    {"thread_id":"...","response":"LangChain is a framework...","created_at":"...","status":"done"}
+```
+
+**Get thread with messages**
+```bash
+curl -s http://localhost:8000/api/threads/<thread-uuid> | jq .
+# Response: {"thread":{...},"messages":[{"role":"user","content":"..."},{"role":"assistant","content":"..."}]}
+```
+
+**Delete thread**
+```bash
+curl -s -X DELETE http://localhost:8000/api/threads/<thread-uuid> | jq .
+# Response: {"status":"deleted"}
+```
+
+---
+
+### Frontend Layout
+
+- **Topbar** — Service links (Nginx Chat, Ollama, Kafka, Kafka UI, Postgres, pgAdmin) with large logos and port numbers.
+- **Left panel** — Thread list: create new threads, switch between threads, delete threads. Auto-creates "Global Chat" if missing.
+- **Center panel** — Chat history for selected thread (user messages right, assistant left). Shows "Pushing to Kafka..." / "Received from Kafka → Ollama" status.
+- **Bottom panel** — Model selector, question textarea, ASK button (Enter to send).
+- **Bottom-left** — Toggleable log panel showing Kafka push/receive events.
+
+---
 
 ### Debug: Nginx Ask → Kafka UI → Chat log → Ollama log → Postgres chain
 
@@ -347,4 +524,4 @@ To trace a full request end-to-end:
    docker exec aicd_postgres psql -U aicd -d aicd -c "SELECT id, thread_id, role, content, created_at FROM messages ORDER BY created_at DESC LIMIT 5;"
    ```
 
-
+Conversation history and threads are persisted in the `aicd_postgres` database (`threads` and `messages` tables, database `aicd`, user `aicd`).
