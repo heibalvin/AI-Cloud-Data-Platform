@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 from typing import Optional, Dict, Any
 
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
@@ -11,10 +10,11 @@ from database import (
     get_latest_assistant_message,
 )
 from llm import get_llm_response
-
-KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "aicd_kafka:9092")
-KAFKA_REQUEST_TOPIC = os.getenv("KAFKA_REQUEST_TOPIC", "chat.requests")
-KAFKA_RESPONSE_TOPIC = os.getenv("KAFKA_RESPONSE_TOPIC", "chat.responses")
+from environment import (
+    KAFKA_BOOTSTRAP_SERVERS,
+    KAFKA_REQUEST_TOPIC,
+    KAFKA_RESPONSE_TOPIC,
+)
 
 producer: Optional[AIOKafkaProducer] = None
 
@@ -72,7 +72,7 @@ async def _consume_requests():
     """Kafka consumer: listens to chat.requests, calls LLM, publishes chat.responses."""
     consumer = AIOKafkaConsumer(
         KAFKA_REQUEST_TOPIC,
-        bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "aicd_kafka:9092"),
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         value_deserializer=lambda v: json.loads(v.decode("utf-8")),
         auto_offset_reset="earliest",
         enable_auto_commit=True,

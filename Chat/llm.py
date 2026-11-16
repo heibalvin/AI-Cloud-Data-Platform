@@ -1,9 +1,10 @@
-import os
 from typing import List, Dict, Any
 
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from db import get_messages
+
+from database import get_messages
+from environment import OLLAMA_BASE_URL
 
 SYSTEM_PROMPT = (
     "You are a helpful AI assistant. "
@@ -12,7 +13,7 @@ SYSTEM_PROMPT = (
 
 
 async def get_llm_response(thread_id: str, user_message: str, model: str) -> str:
-    llm = ChatOllama(model=model, base_url=os.getenv("OLLAMA_BASE_URL", "http://aicd_ollama:11434"))
+    llm = ChatOllama(model=model, base_url=OLLAMA_BASE_URL)
 
     messages: List[Any] = [SystemMessage(content=SYSTEM_PROMPT)]
 

@@ -17,4 +17,4 @@ KAFKA_RESPONSE_TOPIC = os.getenv("KAFKA_RESPONSE_TOPIC", "chat.responses")
 
 # Service
 SERVICE_NAME = os.getenv("SERVICE_NAME", "aicd_chat")
-SERVICE_VERSION = os.getenv("SERVICE_VERSION", "1.0.0")
+SERVICE_VERSION = os.getenv("SERVICE_VERSION", "1.1.0")

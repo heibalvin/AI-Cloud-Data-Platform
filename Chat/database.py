@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 import psycopg
 from psycopg.rows import dict_row
 
-from env import POSTGRES_URI
+from environment import POSTGRES_URI
 
 
 async def get_conn(retries: int = 30, delay: float = 1.0):
