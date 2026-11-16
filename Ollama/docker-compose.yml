@@ -12,14 +12,10 @@ services:
     volumes:
       - ollama_data:/root/.ollama
       - ./entrypoint.sh:/entrypoint.sh
+    ports:
+      - "11434:11434"
     networks:
       - aicd_net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.ollama.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.ollama.entrypoints=ollama"
-      - "traefik.http.routers.ollama.service=ollama"
-      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
 
 volumes:
   ollama_data:

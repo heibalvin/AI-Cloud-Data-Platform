@@ -1,0 +1,13 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "AICD Postgres",
+            "Group": "Servers",
+            "Host": "aicd_postgres",
+            "Port": 5432,
+            "MaintenanceDB": "default",
+            "Username": "postgres",
+            "SSLMode": "prefer"
+        }
+    }
+}

@@ -1,0 +1,33 @@
+services:
+  chat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: "1.0.0"
+    image: aicd-chat:1.0.0
+    container_name: aicd_chat
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    environment:
+      OLLAMA_BASE_URL: http://aicd_ollama:11434
+      POSTGRES_URI: postgresql://${POSTGRES_AICD_USER}:${POSTGRES_AICD_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_AICD_DB}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_HOST}:9092
+      KAFKA_REQUEST_TOPIC: chat.requests
+      KAFKA_RESPONSE_TOPIC: chat.responses
+    ports:
+      - "8000:8000"
+    networks:
+      - aicd_net
+    depends_on:
+      - postgres
+      - ollama
+      - kafka
+
+networks:
+  aicd_net:
+    external: true

@@ -1,6 +1,11 @@
 services:
   nginx:
-    image: nginx:1.31.7-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: "1.1.1"
+    image: aicd-nginx:1.1.1
     container_name: aicd_nginx
     restart: unless-stopped
     deploy:
@@ -8,18 +13,10 @@ services:
         limits:
           cpus: '0.5'
           memory: 1G
-    volumes:
-      - nginx_data:/usr/share/nginx/html
-      - ./index.html:/usr/share/nginx/html/index.html:ro
-      - ./Assets:/usr/share/nginx/html/Assets:ro
+    ports:
+      - "80:80"
     networks:
       - aicd_net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.nginx.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)"
-      - "traefik.http.routers.nginx.entrypoints=web"
-      - "traefik.http.routers.nginx.service=nginx"
-      - "traefik.http.services.nginx.loadbalancer.server.port=80"
 
 volumes:
   nginx_data:
