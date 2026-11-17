@@ -180,46 +180,56 @@ const modelInput = document.getElementById('model-input');
 })();
 
 async function loadThreads() {
-  const res = await fetch(`${API}/threads`);
-  const threads = await res.json();
-  threadListEl.innerHTML = '';
-  threads.forEach(t => {
-    const div = document.createElement('div');
-    div.className = 'thread-item' + (currentThreadId === t.id ? ' active' : '');
-    div.innerHTML = `<span class="thread-title">${escapeHtml(t.title)}</span><span class="thread-delete" onclick="event.stopPropagation(); deleteThread('${t.id}');">×</span>`;
-    div.onclick = () => loadThread(t.id);
-    threadListEl.appendChild(div);
-  });
-  // Check for "Global Chat" thread, create if missing
-  let globalThread = threads.find(t => t.title === 'Global Chat');
-  if (!globalThread && threads.length > 0) {
-    globalThread = threads[0]; // fallback to first thread
-  }
-  if (!globalThread) {
-    // Create Global Chat thread
-    const res = await fetch(`${API}/threads`, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify({ title: 'Global Chat' }) 
-    });
-    if (res.ok) {
-      const t = await res.json();
-      globalThread = t;
-      // Add to list
+  try {
+    const res = await fetch(`${API}/threads`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const threads = await res.json();
+    threadListEl.innerHTML = '';
+    threads.forEach(t => {
       const div = document.createElement('div');
-      div.className = 'thread-item active';
-      div.innerHTML = `<span class="thread-title">Global Chat</span><span class="thread-delete" onclick="event.stopPropagation(); deleteThread('${t.id}');">×</span>`;
+      div.className = 'thread-item' + (currentThreadId === t.id ? ' active' : '');
+      div.innerHTML = `<span class="thread-title">${escapeHtml(t.title)}</span><span class="thread-delete" onclick="event.stopPropagation(); deleteThread('${t.id}');">×</span>`;
       div.onclick = () => loadThread(t.id);
-      threadListEl.prepend(div);
+      threadListEl.appendChild(div);
+    });
+    // Check for "Global Chat" thread, create if missing
+    let globalThread = threads.find(t => t.title === 'Global Chat');
+    if (!globalThread && threads.length > 0) {
+      globalThread = threads[0]; // fallback to first thread
     }
-  }
-  // Auto-select "Global Chat" ONLY if no thread is currently selected
-  if (!currentThreadId && globalThread) {
-    loadThread(globalThread.id);
-  } else if (!currentThreadId && threads.length === 0) {
-    currentThreadId = null;
-    chatHeader.textContent = 'Select a thread';
+    if (!globalThread) {
+      // Create Global Chat thread
+      const res = await fetch(`${API}/threads`, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ title: 'Global Chat' }) 
+      });
+      if (res.ok) {
+        const t = await res.json();
+        globalThread = t;
+        // Add to list
+        const div = document.createElement('div');
+        div.className = 'thread-item active';
+        div.innerHTML = `<span class="thread-title">Global Chat</span><span class="thread-delete" onclick="event.stopPropagation(); deleteThread('${t.id}');">×</span>`;
+        div.onclick = () => loadThread(t.id);
+        threadListEl.prepend(div);
+      }
+    }
+    // Auto-select "Global Chat" ONLY if no thread is currently selected
+    if (!currentThreadId && globalThread) {
+      loadThread(globalThread.id);
+    } else if (!currentThreadId && threads.length === 0) {
+      currentThreadId = null;
+      chatHeader.textContent = 'Select a thread';
+      emptyState.style.display = 'flex';
+      chatMessages.innerHTML = '';
+    }
+  } catch (e) {
+    log('Failed to load threads: ' + e.message, 'error');
+    threadListEl.innerHTML = '<div style="padding: 16px; color: #d93025; text-align: center;">Cannot connect to chat backend.<br>Is <code>aicd_chat</code> running?</div>';
+    chatHeader.textContent = 'Chat backend unavailable';
     emptyState.style.display = 'flex';
+    emptyState.textContent = 'Chat service is not running. Start it with: docker compose up -d chat';
     chatMessages.innerHTML = '';
   }
 }
@@ -227,13 +237,22 @@ async function loadThreads() {
 async function loadThread(threadId) {
   currentThreadId = threadId;
   if (pollTimer) clearInterval(pollTimer);
-  const res = await fetch(`${API}/threads/${threadId}`);
-  const data = await res.json();
-  chatHeader.textContent = data.thread.title;
-  emptyState.style.display = 'none';
-  chatMessages.innerHTML = '';
-  data.messages.forEach(m => appendMessage(m.role, m.content, m.created_at));
-  scrollBottom();
+  try {
+    const res = await fetch(`${API}/threads/${threadId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    chatHeader.textContent = data.thread.title;
+    emptyState.style.display = 'none';
+    chatMessages.innerHTML = '';
+    data.messages.forEach(m => appendMessage(m.role, m.content, m.created_at));
+    scrollBottom();
+  } catch (e) {
+    log('Failed to load thread: ' + e.message, 'error');
+    chatHeader.textContent = 'Error loading thread';
+    emptyState.style.display = 'flex';
+    emptyState.textContent = 'Cannot connect to chat backend.';
+    chatMessages.innerHTML = '';
+  }
 }
 
 async function createThread() {
@@ -311,22 +330,30 @@ function startPolling(threadId) {
   if (pollTimer) clearInterval(pollTimer);
   const sentAfter = lastSentAt;
   pollTimer = setInterval(async () => {
-    const res = await fetch(`${API}/threads/${threadId}/response`);
-    const data = await res.json();
-    if (data.status === 'done' && data.response && (!sentAfter || data.created_at > sentAfter)) {
-      log('Received response from Kafka chat.responses: ' + JSON.stringify(data));
-      const existing = chatMessages.querySelector('.message.assistant:last-child');
-      const lastUser = chatMessages.querySelector('.message.user:last-child');
-      if (lastUser && (!existing || existing.previousElementSibling !== lastUser)) {
-        appendMessage('assistant', data.response, data.created_at);
-        const lastMsg = chatMessages.querySelector('.message.assistant:last-child');
-        const statusEl = lastMsg ? lastMsg.querySelector('.status') : null;
-        if (statusEl) statusEl.textContent = 'Received from Kafka → Ollama';
-        scrollBottom();
+    try {
+      const res = await fetch(`${API}/threads/${threadId}/response`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.status === 'done' && data.response && (!sentAfter || data.created_at > sentAfter)) {
+        log('Received response from Kafka chat.responses: ' + JSON.stringify(data));
+        const existing = chatMessages.querySelector('.message.assistant:last-child');
+        const lastUser = chatMessages.querySelector('.message.user:last-child');
+        if (lastUser && (!existing || existing.previousElementSibling !== lastUser)) {
+          appendMessage('assistant', data.response, data.created_at);
+          const lastMsg = chatMessages.querySelector('.message.assistant:last-child');
+          const statusEl = lastMsg ? lastMsg.querySelector('.status') : null;
+          if (statusEl) statusEl.textContent = 'Received from Kafka → Ollama';
+          scrollBottom();
+        }
+        clearInterval(pollTimer);
+        pollTimer = null;
+        sendBtn.disabled = false;
       }
-      clearInterval(pollTimer);
-      pollTimer = null;
-      sendBtn.disabled = false;
+    } catch (e) {
+      log('Polling error: ' + e.message, 'error');
+      // Don't clear timer - keep polling, but show error in UI
+      const statusEl = chatMessages.querySelector('.message.user:last-child .status');
+      if (statusEl) statusEl.textContent = 'Connection lost to chat backend...';
     }
   }, 1500);
 }
