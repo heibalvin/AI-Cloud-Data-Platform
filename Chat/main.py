@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db, create_thread, list_threads
 from message import start_producer, stop_producer, consume_requests_with_retry
-from api import app as api_app
+from api import router as api_router
 
 app = FastAPI(title="AICD Ollama Chat (Kafka-driven)")
 
@@ -19,7 +19,7 @@ app.add_middleware(
 )
 
 # Mount the API routes
-app.include_router(api_app)
+app.include_router(api_router)
 
 
 @app.on_event("startup")
