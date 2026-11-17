@@ -1,6 +1,6 @@
 FROM nginx:1.31.7-alpine
 
-ARG VERSION=1.1.0
+ARG VERSION
 
 LABEL org.opencontainers.image.version=${VERSION} \
       org.opencontainers.image.title="aicd-nginx" \
