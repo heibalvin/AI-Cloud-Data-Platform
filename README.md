@@ -494,6 +494,75 @@ curl -s -X DELETE http://localhost:8000/api/threads/<thread-uuid> | jq .
 
 ---
 
+### Chat / Python Module Dependencies
+
+The **Chat service** (`aicd_chat`) is organized into focused modules with clear separation of concerns:
+
+```mermaid
+flowchart TD
+    subgraph "External Services"
+        ENV["localhost env vars<br/>.env / docker-compose.yml"]
+        POSTGRES["Postgres<br/>aicd_postgres:5432"]
+        OLLAMA["Ollama LLM<br/>aicd_ollama:11434"]
+        KAFKA["Kafka<br/>aicd_kafka:9092"]
+    end
+
+    subgraph "Chat Service (aicd_chat:8000)"
+        MAIN["main.py<br/>Entry point<br/>FastAPI app + startup/shutdown"]
+        ENV_MOD["environment.py<br/>Centralized config<br/>POSTGRES_URI, OLLAMA_BASE_URL,<br/>KAFKA_BOOTSTRAP_SERVERS, topics"]
+        API["api.py<br/>REST endpoints<br/>/api/threads, /api/chat,<br/>/api/threads/{id}/response"]
+        DB["database.py<br/>Postgres operations<br/>threads, messages, CASCADE delete"]
+        MSG["message.py<br/>Kafka producer/consumer<br/>chat.requests → chat.responses"]
+        LLM["llm.py<br/>LangChain ChatOllama<br/>generates assistant answers"]
+    end
+
+    MAIN -->|mounts router| API
+    MAIN -->|init_db, startup| DB
+    MAIN -->|start_producer| MSG
+    MAIN -->|consume_requests| MSG
+    DB -->|uses| ENV_MOD
+    MSG -->|uses| ENV_MOD
+    MSG -->|calls| LLM
+    LLM -->|uses| ENV_MOD
+    LLM -->|fetches history| DB
+    API -->|calls| DB
+    API -->|publishes| MSG
+    DB -->|async psycopg| POSTGRES
+    LLM -->|HTTP| OLLAMA
+    MSG -->|aiokafka| KAFKA
+    ENV_MOD -->|reads| ENV
+```
+
+#### Module Responsibilities
+
+| Module | Purpose | External Deps |
+|--------|---------|---------------|
+| **environment.py** | Single source of truth for all config. Reads `os.getenv()` with Docker defaults. | `os` (stdlib) |
+| **main.py** | FastAPI app factory. Mounts API router. Starts Kafka producer + background consumer task on startup. | `fastapi`, `asyncio` |
+| **api.py** | REST endpoints only. No business logic. Delegates to `database.py` and `message.py`. | `fastapi`, `pydantic` |
+| **database.py** | All Postgres operations. Async `psycopg` with retry logic. Tables: `threads`, `messages` (CASCADE). | `psycopg`, `uuid`, `datetime` |
+| **message.py** | Kafka producer/consumer. Consumes `chat.requests`, calls LLM, saves to DB, publishes `chat.responses`. | `aiokafka`, `json`, `asyncio` |
+| **llm.py** | LangChain `ChatOllama` wrapper. Builds message history from DB, invokes LLM, returns answer. | `langchain_ollama`, `langchain_core` |
+
+#### Data Flow (Internal)
+
+```
+POST /api/chat (api.py)
+    → publish_chat_request() (message.py)
+        → Kafka: chat.requests
+            → consume_requests() (message.py, background task)
+                → add_message(user) (database.py) → Postgres
+                → get_llm_response() (llm.py)
+                    → fetch history (database.py) → Postgres
+                    → ChatOllama.ainvoke() → Ollama
+                → add_message(assistant) (database.py) → Postgres
+                → publish_chat_response() (message.py)
+                    → Kafka: chat.responses
+                        → GET /api/threads/{id}/response (api.py) polls DB
+```
+
+---
+
 ### Frontend Layout
 
 - **Topbar** — Service links (Nginx Chat, Ollama, Kafka, Kafka UI, Postgres, pgAdmin) with large logos and port numbers.
