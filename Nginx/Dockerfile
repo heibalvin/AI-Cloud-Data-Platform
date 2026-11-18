@@ -1,9 +1,6 @@
 FROM nginx:1.31.7-alpine
 
-ARG VERSION
-
-LABEL org.opencontainers.image.version=${VERSION} \
-      org.opencontainers.image.title="aicd-nginx" \
+LABEL org.opencontainers.image.title="aicd-nginx" \
       org.opencontainers.image.description="AICD Nginx chat frontend"
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf

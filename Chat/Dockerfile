@@ -1,15 +1,11 @@
 FROM python:3.12-slim
 
-ARG VERSION
-
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    AICD_VERSION=${VERSION}
+    PYTHONUNBUFFERED=1
 
-LABEL org.opencontainers.image.version=${VERSION} \
-      org.opencontainers.image.title="aicd-chat" \
+LABEL org.opencontainers.image.title="aicd-chat" \
       org.opencontainers.image.description="AICD Ollama chat backend with Kafka, LangChain and Postgres"
 
 RUN pip install --no-cache-dir --upgrade pip

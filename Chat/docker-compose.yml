@@ -3,9 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        VERSION: ${CHAT_VERSION:-1.1.1}
-    image: aicd-chat:${CHAT_VERSION:-1.1.1}
+    image: aicd-chat:1.1.1
     container_name: aicd_chat
     restart: unless-stopped
     deploy:
